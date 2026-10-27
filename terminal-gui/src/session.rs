@@ -61,9 +61,7 @@ fn run_probe(
     let mut writer = pair.master.take_writer()
         .map_err(|error| error.to_string())?;
 
-    let mut command = CommandBuilder::new("/usr/bin/head");
-    command.arg("-n");
-    command.arg("3");
+    let command = CommandBuilder::new("/bin/cat");
 
     let child = pair.slave.spawn_command(command)
         .map_err(|error| error.to_string())?;

@@ -104,6 +104,19 @@ impl eframe::App for TerminalApp {
                 }
             }
 
+            if ui.button("Send Ctrl+D").clicked() {
+                match self.input_sender.try_send(
+                    SessionCommand::Input(vec![0x04]),
+                ) {
+                    Ok(()) => {
+                        self.status = String::from("Ctrl+D queued");
+                    }
+                    Err(error) => {
+                        self.status = format!("Could not queue Ctrl+D: {error}");
+                    }
+                }
+            }
+
             ui.label(&self.status);
             let text = String::from_utf8_lossy(&self.output);
             ui.monospace(format!("Pty output: {text:?}"));
