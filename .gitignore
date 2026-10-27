@@ -1,0 +1,16 @@
+# Rust build output, including the old package build directory
+directory
+target/
+
+# Local IDE and macOS files
+.idea/
+.DS_Store
+
+# Files created during our history checkpoints
+history*-check.txt
+*-history.txt
+
+# Local Enviornment files
+.env
+.env.*
+!.env.example

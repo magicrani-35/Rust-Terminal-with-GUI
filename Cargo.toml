@@ -1,0 +1,3 @@
+[workspace]
+members = ["terminal-gui","terminal-shell"]
+resolver = "3"
