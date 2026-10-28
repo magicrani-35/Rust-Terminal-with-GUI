@@ -103,7 +103,18 @@ impl eframe::App for TerminalApp {
 
             ui.horizontal(|ui| {
                 ui.label("Command:");
-                ui.text_edit_singleline(&mut self.command_input);
+                
+                let field = ui.text_edit_singleline(&mut self.command_input);
+
+                let enter_pressed = field.lost_focus()
+                    && ui.input(|input| input.key_pressed(egui::Key::Enter));
+
+                let send_clicked = ui.button("Send").clicked();
+
+                if enter_pressed || send_clicked {
+                    self.send_command();
+                    field.request_focus();
+                }
 
                 if ui.button("Send").clicked() {
                     self.send_command();
