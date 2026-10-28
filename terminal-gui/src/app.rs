@@ -12,6 +12,7 @@ pub(crate) struct TerminalApp {
     output: Vec<u8>,
     status: String,
     input_sender: SyncSender<SessionCommand>,
+    command_input: String,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -27,6 +28,7 @@ impl TerminalApp {
             input_sender,
             output: Vec::new(),
             status: String::from("Waiting for the worker..."),
+            command_input: String::new(),
         }
     }
 
@@ -48,6 +50,25 @@ impl TerminalApp {
         }
 
         self.output.extend_from_slice(bytes);
+    }
+
+    fn send_command(&mut self) {
+        if self.command_input.is_empty() {
+            return;
+        }
+
+        let mut bytes = self.command_input.as_bytes().to_vec();
+        bytes.push(b'\n');
+
+        match self.input_sender.try_send(SessionCommand::Input(bytes)) {
+            Ok(()) => {
+                self.command_input.clear();
+                self.status = String::from("Input queued");
+            }
+            Err(error) => {
+                self.status = format!("Could not queue input: {error}");
+            }
+        }
     }
 }
 
@@ -80,18 +101,14 @@ impl eframe::App for TerminalApp {
         egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Rust Terminal");
 
-            if ui.button("Send test line").clicked() {
-                match self.input_sender.try_send(
-                    SessionCommand::Input(b"echo gui-shell-check\n".to_vec()),
-                ) {
-                    Ok(()) => {
-                        self.status = String::from("Input queued");
-                    }
-                    Err(error) => {
-                        self.status = format!("Could not queue input: {error}");
-                    }
+            ui.horizontal(|ui| {
+                ui.label("Command:");
+                ui.text_edit_singleline(&mut self.command_input);
+
+                if ui.button("Send").clicked() {
+                    self.send_command();
                 }
-            }
+            });
 
             if ui.button("Stop shell").clicked() {
                 match self.input_sender.try_send(SessionCommand::Shutdown) {
@@ -167,6 +184,7 @@ mod tests {
             status: String::new(),
             output: Vec::new(),
             input_sender,
+            command_input: String::new(),
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -
