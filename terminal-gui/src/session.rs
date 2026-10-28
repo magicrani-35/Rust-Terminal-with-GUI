@@ -112,7 +112,7 @@ fn run_session(
 
         read_result.map_err(|error| error.to_string())?;
 
-        Ok(format!("PTY diagnostic finished: {status}"))
+        Ok(format!("Shell session finished: {status}"))
     })
 }
 

@@ -82,7 +82,7 @@ impl eframe::App for TerminalApp {
 
             if ui.button("Send test line").clicked() {
                 match self.input_sender.try_send(
-                    SessionCommand::Input(b"gui-shell-check\n".to_vec()),
+                    SessionCommand::Input(b"echo gui-shell-check\n".to_vec()),
                 ) {
                     Ok(()) => {
                         self.status = String::from("Input queued");
