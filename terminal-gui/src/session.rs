@@ -8,6 +8,7 @@ use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use eframe::egui;
 
 use crate::process::ManagedChild;
+use crate::shell_path;
 
 pub(crate) enum SessionEvent {
     Output(Vec<u8>),
@@ -27,7 +28,7 @@ pub(crate) fn start(
     let (input_sender, input_receiver) = mpsc::sync_channel::<SessionCommand>(1);
 
     thread::spawn(move || {
-        let message = match run_probe(&sender, &ctx, &input_receiver) {
+        let message = match run_session(&sender, &ctx, &input_receiver) {
             Ok(message) => message,
             Err(error) => format!("PTY startup failed: {error}"),
         };
@@ -40,7 +41,7 @@ pub(crate) fn start(
     (receiver, input_sender)
 }
 
-fn run_probe(
+fn run_session(
     sender: &SyncSender<SessionEvent>,
     ctx: &egui::Context,
     input: &Receiver<SessionCommand>,
@@ -61,7 +62,11 @@ fn run_probe(
     let mut writer = pair.master.take_writer()
         .map_err(|error| error.to_string())?;
 
-    let command = CommandBuilder::new("/bin/cat");
+    let path = shell_path::locate()
+        .map_err(|error| error.to_string())?;
+
+    let mut command = CommandBuilder::new(path);
+    command.env("TERM", "dumb");
 
     let child = pair.slave.spawn_command(command)
         .map_err(|error| error.to_string())?;
@@ -91,13 +96,13 @@ fn run_probe(
                         })?;
                 }
                 Ok(SessionCommand::Shutdown) => {
-                    return Ok(String::from("PTY probe stopped"));
+                    return Ok(String::from("Shell session stopped"));
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     continue;
                 }
                 Err(RecvTimeoutError::Disconnected) => {
-                    return Err(String::from("GUI input channel closed"));
+                    return Err(String::from("Shell session finished: {status}"));
                 }
             }
         };

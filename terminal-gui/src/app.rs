@@ -82,7 +82,7 @@ impl eframe::App for TerminalApp {
 
             if ui.button("Send test line").clicked() {
                 match self.input_sender.try_send(
-                    SessionCommand::Input(b"gui-input-check\n".to_vec()),
+                    SessionCommand::Input(b"gui-shell-check\n".to_vec()),
                 ) {
                     Ok(()) => {
                         self.status = String::from("Input queued");
@@ -93,7 +93,7 @@ impl eframe::App for TerminalApp {
                 }
             }
 
-            if ui.button("Stop probe").clicked() {
+            if ui.button("Stop shell").clicked() {
                 match self.input_sender.try_send(SessionCommand::Shutdown) {
                     Ok(()) => {
                         self.status = String::from("Shutdown queued");
@@ -113,6 +113,19 @@ impl eframe::App for TerminalApp {
                     }
                     Err(error) => {
                         self.status = format!("Could not queue Ctrl+D: {error}");
+                    }
+                }
+            }
+            
+            if ui.button("Send exit command").clicked() {
+                match self.input_sender.try_send(
+                    SessionCommand::Input(b"exit\n".to_vec()),
+                ) {
+                    Ok(()) => {
+                        self.status = String::from("Exit command queued");
+                    }
+                    Err(error) => {
+                        self.status = format!("Could not queue exit: {error}");
                     }
                 }
             }
