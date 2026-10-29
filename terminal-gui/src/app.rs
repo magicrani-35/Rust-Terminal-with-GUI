@@ -159,10 +159,19 @@ impl eframe::App for TerminalApp {
             }
 
             ui.label(&self.status);
-            let text = String::from_utf8_lossy(&self.output);
-            ui.monospace(format!("Pty output: {text:?}"));
 
-            ui.label("Our terminal window is running...");
+            ui.separator();
+            ui.label("Session output");
+
+            let text = String::from_utf8_lossy(&self.output);
+            let display_text = text.replace("\r\n", "\n");
+
+            egui::ScrollArea::vertical()
+                .max_height(220.0)
+                .stick_to_bottom(true)
+                .show(ui, |ui| {
+                    ui.monospace(&display_text);
+                });
 
             // Will be the home to GUI's state.
             match &self.shell_path {
