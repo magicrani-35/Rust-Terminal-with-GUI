@@ -2,6 +2,7 @@ mod app;
 mod shell_path;
 mod session;
 mod process;
+mod terminal;
 
 use app::TerminalApp;
 use eframe::egui;
