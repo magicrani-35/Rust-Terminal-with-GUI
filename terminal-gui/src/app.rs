@@ -6,6 +6,7 @@ use crate::shell_path;
 use crate::session;
 use crate::session::{SessionCommand, SessionEvent};
 use crate::terminal::TerminalScreen;
+use crate::terminal_view;
 
 pub(crate) struct TerminalApp {
     shell_path: Result<PathBuf, String>,
@@ -168,13 +169,11 @@ impl eframe::App for TerminalApp {
             ui.separator();
             ui.label("Terminal Screen");
 
-            let display_text = self.terminal.contents();
 
-            egui::ScrollArea::vertical()
+            egui::ScrollArea::both()
                 .max_height(220.0)
-                .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    ui.monospace(&display_text);
+                    terminal_view::show(ui, self.terminal.screen());
                 });
 
             // Will be the home to GUI's state.

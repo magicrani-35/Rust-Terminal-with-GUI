@@ -13,8 +13,8 @@ impl TerminalScreen {
         self.parser.process(bytes);
     }
 
-    pub(crate) fn contents(&self) -> String {
-        self.parser.screen().contents()
+    pub(crate) fn screen(&self) -> &vt100::Screen {
+        self.parser.screen()
     }
 }
 

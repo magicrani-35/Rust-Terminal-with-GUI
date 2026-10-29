@@ -3,6 +3,7 @@ mod shell_path;
 mod session;
 mod process;
 mod terminal;
+mod terminal_view;
 
 use app::TerminalApp;
 use eframe::egui;
