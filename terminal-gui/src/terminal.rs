@@ -1,3 +1,23 @@
+pub(crate) struct TerminalScreen {
+    parser: vt100::Parser,
+}
+
+impl TerminalScreen {
+    pub(crate) fn new() -> Self {
+        Self {
+            parser: vt100::Parser::new(24, 80, 1000),
+        }
+    }
+
+    pub(crate) fn process(&mut self, bytes: &[u8]) {
+        self.parser.process(bytes);
+    }
+
+    pub(crate) fn contents(&self) -> String {
+        self.parser.screen().contents()
+    }
+}
+
 #[cfg(test)]
 mod test {
     #[test]

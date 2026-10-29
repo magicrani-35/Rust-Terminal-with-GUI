@@ -5,6 +5,7 @@ use std::sync::mpsc::{Receiver, SyncSender};
 use crate::shell_path;
 use crate::session;
 use crate::session::{SessionCommand, SessionEvent};
+use crate::terminal::TerminalScreen;
 
 pub(crate) struct TerminalApp {
     shell_path: Result<PathBuf, String>,
@@ -13,6 +14,7 @@ pub(crate) struct TerminalApp {
     status: String,
     input_sender: SyncSender<SessionCommand>,
     command_input: String,
+    terminal: TerminalScreen,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -29,10 +31,13 @@ impl TerminalApp {
             output: Vec::new(),
             status: String::from("Waiting for the worker..."),
             command_input: String::new(),
+            terminal: TerminalScreen::new(),
         }
     }
 
     fn append_output(&mut self, bytes: &[u8]) {
+        self.terminal.process(bytes);
+
         if bytes.len() >= OUTPUT_LIMIT {
             self.output.clear();
             self.output.extend_from_slice(
@@ -161,10 +166,9 @@ impl eframe::App for TerminalApp {
             ui.label(&self.status);
 
             ui.separator();
-            ui.label("Session output");
+            ui.label("Terminal Screen");
 
-            let text = String::from_utf8_lossy(&self.output);
-            let display_text = text.replace("\r\n", "\n");
+            let display_text = self.terminal.contents();
 
             egui::ScrollArea::vertical()
                 .max_height(220.0)
@@ -205,6 +209,7 @@ mod tests {
             output: Vec::new(),
             input_sender,
             command_input: String::new(),
+            terminal: TerminalScreen::new(),
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -
