@@ -1,6 +1,10 @@
 use eframe::egui;
 
-pub(crate) fn show(ui: &mut egui::Ui, screen: &vt100::Screen) {
+pub(crate) fn show(
+    ui: &mut egui::Ui, 
+    screen: &vt100::Screen,
+    active: bool,
+) {
     let font = egui::FontId::monospace(14.0);
 
     let cell_width = ui.fonts_mut(|fonts| fonts.glyph_width(&font, 'M'));
@@ -43,7 +47,7 @@ pub(crate) fn show(ui: &mut egui::Ui, screen: &vt100::Screen) {
         }
     }
 
-    if !screen.hide_cursor() {
+    if active && !screen.hide_cursor() {
         let (row, col) = screen.cursor_position();
 
         let position = rect.min + egui::vec2(

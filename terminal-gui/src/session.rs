@@ -11,8 +11,9 @@ use crate::process::ManagedChild;
 use crate::shell_path;
 
 pub(crate) enum SessionEvent {
+    Started,
     Output(Vec<u8>),
-    Status(String),
+    Finished(String),
 }
 
 pub(crate) enum SessionCommand {
@@ -30,10 +31,10 @@ pub(crate) fn start(
     thread::spawn(move || {
         let message = match run_session(&sender, &ctx, &input_receiver) {
             Ok(message) => message,
-            Err(error) => format!("PTY startup failed: {error}"),
+            Err(error) => format!("Shell session failed: {error}"),
         };
 
-        if sender.send(SessionEvent::Status(message)).is_ok() {
+        if sender.send(SessionEvent::Finished(message)).is_ok() {
             ctx.request_repaint();
         }
     });
@@ -75,6 +76,11 @@ fn run_session(
 
     thread::scope(|scope| {
         let mut child = ManagedChild::new(child);
+
+        sender.send(SessionEvent::Started)
+            .map_err(|_| String::from("GUI event channel closed"))?;
+
+        ctx.request_repaint();
 
         let output_worker = scope.spawn(move || {
             stream_output(reader.as_mut(), sender, ctx)

@@ -8,6 +8,13 @@ use crate::session::{SessionCommand, SessionEvent};
 use crate::terminal::TerminalScreen;
 use crate::terminal_view;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SessionState {
+    Starting,
+    Running,
+    Finished,
+}
+
 pub(crate) struct TerminalApp {
     shell_path: Result<PathBuf, String>,
     events: Receiver<SessionEvent>,
@@ -16,6 +23,7 @@ pub(crate) struct TerminalApp {
     input_sender: SyncSender<SessionCommand>,
     command_input: String,
     terminal: TerminalScreen,
+    session_state: SessionState,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -33,6 +41,7 @@ impl TerminalApp {
             status: String::from("Waiting for the worker..."),
             command_input: String::new(),
             terminal: TerminalScreen::new(),
+            session_state: SessionState::Starting,
         }
     }
 
@@ -59,7 +68,9 @@ impl TerminalApp {
     }
 
     fn send_command(&mut self) {
-        if self.command_input.is_empty() {
+        if self.session_state != SessionState::Running 
+            || self.command_input.is_empty() 
+        {
             return;
         }
 
@@ -89,10 +100,15 @@ impl eframe::App for TerminalApp {
             };
 
             match event {
+                SessionEvent::Started => {
+                    self.session_state = SessionState::Running;
+                    self.status = String::from("Shell running");
+                }
                 SessionEvent::Output(bytes) => {
                     self.append_output(&bytes);
                 }
-                SessionEvent::Status(message) => {
+                SessionEvent::Finished(message) => {
+                    self.session_state = SessionState::Finished;
                     self.status = message;
                 }
             }
@@ -108,24 +124,23 @@ impl eframe::App for TerminalApp {
             ui.heading("Rust Terminal");
 
             ui.horizontal(|ui| {
-                ui.label("Command:");
+                ui.add_enabled_ui(
+                    self.session_state == SessionState::Running, |ui| {
+            
+                    ui.label("Command:");
                 
-                let field = ui.text_edit_singleline(&mut self.command_input);
+                    let field = ui.text_edit_singleline(&mut self.command_input);
 
-                let enter_pressed = field.lost_focus()
-                    && ui.input(|input| input.key_pressed(egui::Key::Enter));
+                     let enter_pressed = field.lost_focus()
+                        && ui.input(|input| input.key_pressed(egui::Key::Enter));
 
-                let send_clicked = ui.button("Send").clicked();
+                    let send_clicked = ui.button("Send").clicked();
 
-                if enter_pressed || send_clicked {
-                    self.send_command();
-                    field.request_focus();
-                }
-
-                if ui.button("Send").clicked() {
-                    self.send_command();
-                }
-            });
+                    if enter_pressed || send_clicked {
+                        self.send_command();
+                        field.request_focus();
+                    }
+                });
 
             if ui.button("Stop shell").clicked() {
                 match self.input_sender.try_send(SessionCommand::Shutdown) {
@@ -163,7 +178,8 @@ impl eframe::App for TerminalApp {
                     }
                 }
             }
-
+        },
+    );
             ui.label(&self.status);
 
             ui.separator();
@@ -173,7 +189,11 @@ impl eframe::App for TerminalApp {
             egui::ScrollArea::both()
                 .max_height(220.0)
                 .show(ui, |ui| {
-                    terminal_view::show(ui, self.terminal.screen());
+                    terminal_view::show(
+                        ui, 
+                        self.terminal.screen(),
+                        self.session_state == SessionState::Running,
+                    );
                 });
 
             // Will be the home to GUI's state.
@@ -209,6 +229,7 @@ mod tests {
             input_sender,
             command_input: String::new(),
             terminal: TerminalScreen::new(),
+            session_state: SessionState::Starting,
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -
