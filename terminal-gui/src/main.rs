@@ -4,6 +4,7 @@ mod session;
 mod process;
 mod terminal;
 mod terminal_view;
+mod palette;
 
 use app::TerminalApp;
 use eframe::egui;
