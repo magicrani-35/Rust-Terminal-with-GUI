@@ -1,5 +1,7 @@
 use eframe::egui;
 
+use crate::palette;
+
 pub(crate) fn show(
     ui: &mut egui::Ui, 
     screen: &vt100::Screen,
@@ -28,6 +30,30 @@ pub(crate) fn show(
                 continue;
             };
 
+            let position = rect.min + egui::vec2(
+                f32::from(col) * cell_width,
+                f32::from(row) * cell_height,
+            );
+
+            let (_, background) = cell_colors(cell);
+
+            painter.rect_filled(
+                egui::Rect::from_min_size(
+                    position,
+                    egui::vec2(cell_width, cell_height),
+                ),
+                0.0,
+                background,
+            );
+        }
+    }
+
+    for row in 0..rows {
+        for col in 0..cols {
+            let Some(cell) = screen.cell(row, col) else {
+                continue;
+            };
+
             if cell.is_wide_continuation() {
                 continue;
             }
@@ -37,12 +63,14 @@ pub(crate) fn show(
                 f32::from(row) * cell_height,
             );
 
+            let (foreground, _) = cell_colors(cell);
+
             painter.text(
                 position,
                 egui::Align2::LEFT_TOP,
                 cell.contents(),
                 font.clone(),
-                egui::Color32::LIGHT_GRAY,
+                foreground,
             );
         }
     }
@@ -60,5 +88,23 @@ pub(crate) fn show(
             0.0,
             egui::Color32::LIGHT_GREEN,
         );
+    }
+}
+
+fn cell_colors(cell: &vt100::Cell) -> (egui::Color32, egui::Color32) {
+    let foreground = palette::resolve(
+        cell.fgcolor(),
+        egui::Color32::LIGHT_GRAY,
+    );
+
+    let background = palette::resolve(
+        cell.bgcolor(),
+        egui::Color32::from_rgb(20, 20, 24),
+    );
+
+    if cell.inverse() {
+        (background, foreground)
+    } else {
+        (foreground, foreground)
     }
 }
