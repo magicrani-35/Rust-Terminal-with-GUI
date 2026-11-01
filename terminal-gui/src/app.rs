@@ -1,6 +1,7 @@
 use eframe::egui;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, SyncSender};
+use std::sync::mpsc::TrySendError;
 
 use crate::shell_path;
 use crate::session;
@@ -24,6 +25,7 @@ pub(crate) struct TerminalApp {
     command_input: String,
     terminal: TerminalScreen,
     session_state: SessionState,
+    pending_terminal_reply: Option<SessionCommand>,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -42,6 +44,7 @@ impl TerminalApp {
             command_input: String::new(),
             terminal: TerminalScreen::new(),
             session_state: SessionState::Starting,
+            pending_terminal_reply: None,
         }
     }
 
@@ -87,6 +90,23 @@ impl TerminalApp {
             }
         }
     }
+
+    fn flush_terminal_reply(&mut self) -> bool {
+        let Some(command) = self.pending_terminal_reply.take() else {
+            return true;
+        };
+
+        match self.input_sender.try_send(command) {
+            Ok(()) => true,
+            Err(TrySendError::Full(command)) => {
+                self.pending_terminal_reply = Some(command);
+                false
+            }
+            Err(TrySendError::Disconnected(_)) => {
+                true
+            }
+        }
+    }
 }
 
 impl eframe::App for TerminalApp {
@@ -94,6 +114,13 @@ impl eframe::App for TerminalApp {
         let mut received = 0;
 
         for _ in 0..32 {
+            if !self.flush_terminal_reply() {
+                ui.ctx().request_repaint_after(
+                    std::time::Duration::from_millis(10),
+                );
+                break;
+            }
+
             let event = match self.events.try_recv() {
                 Ok(event) => event,
                 Err(_) => break,
@@ -106,6 +133,13 @@ impl eframe::App for TerminalApp {
                 }
                 SessionEvent::Output(bytes) => {
                     self.append_output(&bytes);
+
+                    let replies = self.terminal.take_replies();
+
+                    if !replies.is_empty() {
+                        self.pending_terminal_reply = Some(SessionCommand::Input(replies),
+                        );
+                    }
                 }
                 SessionEvent::Finished(message) => {
                     self.session_state = SessionState::Finished;
@@ -230,6 +264,7 @@ mod tests {
             command_input: String::new(),
             terminal: TerminalScreen::new(),
             session_state: SessionState::Starting,
+            pending_terminal_reply: None,
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -

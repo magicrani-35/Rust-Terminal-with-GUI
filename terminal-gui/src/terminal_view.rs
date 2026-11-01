@@ -105,6 +105,6 @@ fn cell_colors(cell: &vt100::Cell) -> (egui::Color32, egui::Color32) {
     if cell.inverse() {
         (background, foreground)
     } else {
-        (foreground, foreground)
+        (foreground, background)
     }
 }

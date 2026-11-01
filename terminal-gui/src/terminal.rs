@@ -84,6 +84,7 @@ mod test {
         assert!(terminal.take_replies().is_empty());
     }
 
+    #[test]
     fn carriage_return_overwrites_existing_text() {
         let mut parser = vt100::Parser::new(24, 80, 0);
 
