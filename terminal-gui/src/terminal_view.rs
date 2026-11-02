@@ -6,7 +6,7 @@ pub(crate) fn show(
     ui: &mut egui::Ui, 
     screen: &vt100::Screen,
     active: bool,
-) {
+) -> egui::Response {
     let font = egui::FontId::monospace(14.0);
 
     let cell_width = ui.fonts_mut(|fonts| fonts.glyph_width(&font, 'M'));
@@ -19,7 +19,17 @@ pub(crate) fn show(
         f32::from(rows) * cell_height,
     );
 
-    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    let (rect, response) = 
+        ui.allocate_exact_size(size, egui::Sense::click());
+
+    if active && response.clicked() {
+        response.request_focus();
+    }
+
+    if !active && response.has_focus() {
+        response.surrender_focus();
+    }
+
     let painter = ui.painter();
 
     painter.rect_filled(rect, 0.0, egui::Color32::from_rgb(20, 20, 24));
@@ -89,6 +99,8 @@ pub(crate) fn show(
             egui::Color32::LIGHT_GREEN,
         );
     }
+
+    response
 }
 
 fn cell_colors(cell: &vt100::Cell) -> (egui::Color32, egui::Color32) {

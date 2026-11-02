@@ -230,15 +230,24 @@ impl eframe::App for TerminalApp {
             ui.label("Terminal Screen");
 
 
-            egui::ScrollArea::both()
+            let terminal_response = egui::ScrollArea::both()
                 .max_height(220.0)
                 .show(ui, |ui| {
                     terminal_view::show(
                         ui, 
                         self.terminal.screen(),
                         self.session_state == SessionState::Running,
-                    );
-                });
+                    )
+                })
+                .inner;
+
+            if self.session_state == SessionState::Running {
+                if terminal_response.has_focus() {
+                    ui.label("Terminal focused - direct typing comes next");
+                } else {
+                    ui.label("Click the terminal to focus it");
+                }
+            }
 
             // Will be the home to GUI's state.
             match &self.shell_path {
