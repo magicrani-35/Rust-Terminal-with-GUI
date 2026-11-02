@@ -26,6 +26,7 @@ pub(crate) struct TerminalApp {
     terminal: TerminalScreen,
     session_state: SessionState,
     pending_terminal_reply: Option<SessionCommand>,
+    reply_batches_queued: usize,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
@@ -45,6 +46,7 @@ impl TerminalApp {
             terminal: TerminalScreen::new(),
             session_state: SessionState::Starting,
             pending_terminal_reply: None,
+            reply_batches_queued: 0,
         }
     }
 
@@ -97,7 +99,10 @@ impl TerminalApp {
         };
 
         match self.input_sender.try_send(command) {
-            Ok(()) => true,
+            Ok(()) => {
+                self.reply_batches_queued += 1;
+                true
+            }
             Err(TrySendError::Full(command)) => {
                 self.pending_terminal_reply = Some(command);
                 false
@@ -216,6 +221,11 @@ impl eframe::App for TerminalApp {
     );
             ui.label(&self.status);
 
+            ui.label(format!(
+                "Terminal reply batches queued: {}",
+                self.reply_batches_queued,
+            ));
+
             ui.separator();
             ui.label("Terminal Screen");
 
@@ -265,6 +275,7 @@ mod tests {
             terminal: TerminalScreen::new(),
             session_state: SessionState::Starting,
             pending_terminal_reply: None,
+            reply_batches_queued: 0,
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -

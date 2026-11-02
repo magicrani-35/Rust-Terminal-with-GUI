@@ -67,7 +67,7 @@ fn run_session(
         .map_err(|error| error.to_string())?;
 
     let mut command = CommandBuilder::new(path);
-    command.env("TERM", "dumb");
+    command.env("TERM", "vt100");
 
     let child = pair.slave.spawn_command(command)
         .map_err(|error| error.to_string())?;
