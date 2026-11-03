@@ -5,6 +5,7 @@ mod process;
 mod terminal;
 mod terminal_view;
 mod palette;
+mod terminal_input;
 
 use app::TerminalApp;
 use eframe::egui;
@@ -23,6 +24,3 @@ fn main() -> eframe::Result {
             Ok(Box::new(TerminalApp::new(cc.egui_ctx.clone())))),
     )
 }
-
-#[cfg(test)]
-mod terminal_input;

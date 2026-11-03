@@ -8,6 +8,7 @@ use crate::session;
 use crate::session::{SessionCommand, SessionEvent};
 use crate::terminal::TerminalScreen;
 use crate::terminal_view;
+use crate::terminal_input;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SessionState {
@@ -27,9 +28,11 @@ pub(crate) struct TerminalApp {
     session_state: SessionState,
     pending_terminal_reply: Option<SessionCommand>,
     reply_batches_queued: usize,
+    pending_keyboard: Vec<u8>,
 }
 
 const OUTPUT_LIMIT: usize = 64 * 1024;
+const KEYBOARD_LIMIT: usize = 8 * 1024;
 
 impl TerminalApp {
     pub(crate) fn new(ctx: egui::Context) -> Self {
@@ -47,6 +50,7 @@ impl TerminalApp {
             session_state: SessionState::Starting,
             pending_terminal_reply: None,
             reply_batches_queued: 0,
+            pending_keyboard: Vec::new(),
         }
     }
 
@@ -112,6 +116,39 @@ impl TerminalApp {
             }
         }
     }
+
+    fn flush_keyboard(&mut self, ctx: &egui::Context) {
+        if self.session_state != SessionState::Running 
+            || self.pending_keyboard.is_empty()
+        {
+            return;
+        }
+
+        if self.pending_terminal_reply.is_none() {
+            let command = SessionCommand::Input(
+                self.pending_keyboard.clone(),
+            );
+
+            match self.input_sender.try_send(command) {
+                Ok(()) => {
+                    self.pending_keyboard.clear()
+                }
+                Err(TrySendError::Full(_)) => {}
+                Err(TrySendError::Disconnected(_)) => {
+                    self.pending_keyboard.clear();
+                    self.status = String::from("Shell input channel closed");
+                }
+            }
+        }
+
+        if !self.pending_keyboard.is_empty() {
+            ctx.request_repaint_after(
+                std::time::Duration::from_millis(10),
+            );
+        }
+
+
+    }
 }
 
 impl eframe::App for TerminalApp {
@@ -149,6 +186,7 @@ impl eframe::App for TerminalApp {
                 SessionEvent::Finished(message) => {
                     self.session_state = SessionState::Finished;
                     self.status = message;
+                    self.pending_keyboard.clear();
                 }
             }
 
@@ -241,9 +279,33 @@ impl eframe::App for TerminalApp {
                 })
                 .inner;
 
+            if self.session_state == SessionState::Running
+                && terminal_response.has_focus()
+                && !terminal_response.gained_focus()
+            {
+                let bytes: Vec<u8> = ui.input(|input| {
+                    input.events.iter()
+                        .filter_map(terminal_input::encode)
+                        .flatten()
+                        .collect()
+                });
+
+                if self.pending_keyboard.len().saturating_add(bytes.len()) 
+                    <= KEYBOARD_LIMIT
+                {
+                    self.pending_keyboard.extend(bytes);
+                } else {
+                    self.status = String::from(
+                        "Keyboard queue full; latest input was not accepted",
+                    );
+                }
+            }
+
+            self.flush_keyboard(ui.ctx());
+
             if self.session_state == SessionState::Running {
                 if terminal_response.has_focus() {
-                    ui.label("Terminal focused - direct typing comes next");
+                    ui.label("Terminal focused - type directly");
                 } else {
                     ui.label("Click the terminal to focus it");
                 }
@@ -285,6 +347,7 @@ mod tests {
             session_state: SessionState::Starting,
             pending_terminal_reply: None,
             reply_batches_queued: 0,
+            pending_keyboard: Vec::new(),
         };
 
         app.append_output(&vec! [b'a'; OUTPUT_LIMIT -
