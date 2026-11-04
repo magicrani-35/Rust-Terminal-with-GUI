@@ -283,9 +283,13 @@ impl eframe::App for TerminalApp {
                 && terminal_response.has_focus()
                 && !terminal_response.gained_focus()
             {
+                let application_cursor = self.terminal.screen().application_cursor();
+
                 let bytes: Vec<u8> = ui.input(|input| {
                     input.events.iter()
-                        .filter_map(terminal_input::encode)
+                        .filter_map(|event| {
+                            terminal_input::encode(event, application_cursor)
+                        })
                         .flatten()
                         .collect()
                 });

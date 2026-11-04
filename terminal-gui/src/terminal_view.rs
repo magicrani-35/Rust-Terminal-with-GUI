@@ -30,6 +30,19 @@ pub(crate) fn show(
         response.surrender_focus();
     }
 
+    if active && response.has_focus() {
+        ui.memory_mut(|memory| {
+            memory.set_focus_lock_filter(
+                response.id,
+                egui::EventFilter {
+                    horizontal_arrows: true,
+                    vertical_arrows: true,
+                    ..Default::default()
+                },
+            );
+        });
+    }
+
     let painter = ui.painter();
 
     painter.rect_filled(rect, 0.0, egui::Color32::from_rgb(20, 20, 24));
